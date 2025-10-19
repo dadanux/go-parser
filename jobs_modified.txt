@@ -1,0 +1,25 @@
+insert_job: DV03_EXA-Major_Box job_type: BOX
+owner: xyz
+date_conditions: 1
+days_of_week: all
+start_times: "06:00"
+timezone: IST
+
+insert_job: DV03_EXA-Child_Box job_type: BOX
+box_name: DV03_EXA-Major_Box
+owner: xyz
+date_conditions: 1
+days_of_week: all
+start_times: "06:15"
+timezone: IST
+
+insert_job: DV03_EXA-Job_A job_type: CMD
+box_name: DV03_EXA-Child_Box
+command: bash /absolute_path/script_name.sh
+owner: xyz
+machine: hostname
+date_conditions: '1'
+days_of_week: all
+start_times: "06:30"
+timezone: IST
+
