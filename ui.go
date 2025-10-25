@@ -83,7 +83,7 @@ func main() {
 			if len(sub) >= 2 {
 				name := strings.TrimSpace(sub[1])
 				if r, ok := replacements[name]; ok && r != "" {
-					return strings.Replace(m, sub[1], "{{ prefix | lower }}_"+r+"_a", 1)
+					return strings.Replace(m, sub[1], "{{ prefix | lower }}_{{"+r+"}}_a", 1)
 				}
 			}
 			return m
