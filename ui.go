@@ -18,12 +18,27 @@ import (
 
 // regex pour trouver "machine: name" ou "machine = name" (tolérant, capture le name)
 var machineRe = regexp.MustCompile(`(?i)machine\s*[:=]\s*"?([^"\n]+?)"?\b`)
+type MyEntry struct {
+    widget.Entry
+    OnFocusLost func()
+}
 
+func NewMyEntry() *MyEntry {
+    e := &MyEntry{}
+    e.ExtendBaseWidget(e)
+    return e
+}
+
+func (e *MyEntry) FocusLost() {
+    if e.OnFocusLost != nil {
+        e.OnFocusLost()
+    }
+}
 func main() {
 	a := app.New()
 	w := a.NewWindow("Creation d'un template pour Ansible à partir d'un fichier Autosys")
 
-	initialText := "ex=wd34343434_iis" // texte affiché quand pas de valeur définie
+	initialText := "variable ex: machine_iis" // texte affiché quand pas de valeur définie
 	// affichage read-only du fichier avec contraste augmenté (fond blanc, texte noir)
 	contentLbl := widget.NewLabel("")
 	contentLbl.Wrapping = fyne.TextWrapOff
@@ -47,20 +62,20 @@ func main() {
 		for _, line := range lines {
 			if strings.HasPrefix(line, "owner:") {
 				outputLines = append(outputLines, "owner: {{ owner }}")
-            } else if strings.HasPrefix(line, "insert_job:") {
-                re := regexp.MustCompile(`insert_job:\s*([^\s]+)`)
-                m := re.FindStringSubmatch(line)
-                if len(m) >= 2 {
-                    outputLines = append(outputLines, "insert_job: {{ prefix }}_" + m[1])
-                }
-            }else if strings.HasPrefix(line, "box_name:") {
-                 re := regexp.MustCompile(`box_name\s*:\s*"?([^"\s]+)"?`)
-                 m := re.FindStringSubmatch(line)
-                if len(m) >= 2 {
-                    outputLines = append(outputLines, "box_name: {{ prefix }}_" + m[1])
-                }
-                
-            } else {
+			} else if strings.HasPrefix(line, "insert_job:") {
+				re := regexp.MustCompile(`insert_job:\s*([^\s]+)`)
+				m := re.FindStringSubmatch(line)
+				if len(m) >= 2 {
+					outputLines = append(outputLines, "insert_job: {{ prefix }}_"+m[1])
+				}
+			} else if strings.HasPrefix(line, "box_name:") {
+				re := regexp.MustCompile(`box_name\s*:\s*"?([^"\s]+)"?`)
+				m := re.FindStringSubmatch(line)
+				if len(m) >= 2 {
+					outputLines = append(outputLines, "box_name: {{ prefix }}_"+m[1])
+				}
+
+			} else {
 				outputLines = append(outputLines, line)
 			}
 		}
@@ -138,7 +153,7 @@ func main() {
 			}
 			valLbl := widget.NewButton(valText, nil) // bouton pour activer édition
 			// entry pour édition inline, cachée initialement
-			valEntry := widget.NewEntry()
+			valEntry := NewMyEntry()
 			valEntry.SetText(val)
 			valEntry.Hide()
 
@@ -147,7 +162,7 @@ func main() {
 			valBox := container.New(layout.NewGridWrapLayout(fyne.NewSize(200, 30)), valStack)
 
 			// activation de l'édition : swap label -> entry
-			valLbl.OnTapped = func(n string, lbl *widget.Button, ent *widget.Entry) func() {
+			valLbl.OnTapped = func(n string, lbl *widget.Button, ent *MyEntry) func() {
 				return func() {
 					lbl.Hide()
 					ent.Show()
@@ -157,7 +172,7 @@ func main() {
 			}(name, valLbl, valEntry)
 
 			// on submit : enregistrer et appliquer, revenir affichage label
-			valEntry.OnSubmitted = func(n string, ent *widget.Entry, lbl *widget.Button) func(string) {
+			valEntry.OnSubmitted = func(n string, ent *MyEntry, lbl *widget.Button) func(string) {
 				return func(s string) {
 					replacements[n] = s
 					if s == "" {
@@ -171,8 +186,20 @@ func main() {
 				}
 			}(name, valEntry, valLbl)
 
+valEntry.OnFocusLost = func() {
+    replacements[name] = valEntry.Text
+    if valEntry.Text == "" {
+        valLbl.SetText(initialText)
+    } else {
+        valLbl.SetText(valEntry.Text)
+    }
+    valEntry.Hide()
+    valLbl.Show()
+    applyReplacements()
+}
+    
 			// perte de focus / modification : mise à jour live (optionnelle) et appliquer
-			valEntry.OnChanged = func(n string, ent *widget.Entry, lbl *widget.Button) func(string) {
+			valEntry.OnChanged = func(n string, ent *MyEntry, lbl *widget.Button) func(string) {
 				return func(s string) {
 					replacements[n] = s
 					if s == "" {
@@ -180,9 +207,17 @@ func main() {
 					} else {
 						lbl.SetText(s)
 					}
-					applyReplacements()
+	    			applyReplacements()
 				}
 			}(name, valEntry, valLbl)
+
+        // valEntry.FocusLost = func(n string, ent *widget.Entry, lbl *widget.Button) func() {
+        //         return func() {
+        //             ent.Hide()
+        //             lbl.Show()
+        //             //applyReplacements()
+        //         }
+        //     }(name, valEntry, valLbl)
 
 			// ligne : nom | remplacement
 			row := container.NewHBox(
@@ -195,7 +230,7 @@ func main() {
 		machinesContainer.Refresh()
 	}
 
-	// bouton Charger fichier: remplit sourceText, met à jour machines et lance process
+
 	loadBtn := widget.NewButton("Charger fichier jil", func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
@@ -210,20 +245,18 @@ func main() {
 			}
 			text := strings.Join(lines, "\n")
 			sourceText = text
-			// afficher le fichier original (lecture seule) dans la vue à fort contraste
+
 			contentLbl.SetText(sourceText)
 			contentLbl.Refresh()
-			// reset replacements when loading new file (optionnel)
+
 			replacements = map[string]string{}
 			updateMachineList(sourceText)
 			applyReplacements()
 		}, w)
 	})
 
-	// Ne pas modifier sourceText via l'input : input est read-only, on ignore OnChanged
 
-	// construire la colonne de gauche : bouton + liste machines en haut, input occupe le reste
-	// suppression du label "Remplacement" dans l'entête demandé
+
 	machineControls := container.NewBorder(nil, nil, nil, nil,
 		container.NewHBox(widget.NewLabel("Machines:")), // header visuel
 	)
