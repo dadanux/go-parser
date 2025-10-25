@@ -211,13 +211,6 @@ valEntry.OnFocusLost = func() {
 				}
 			}(name, valEntry, valLbl)
 
-        // valEntry.FocusLost = func(n string, ent *widget.Entry, lbl *widget.Button) func() {
-        //         return func() {
-        //             ent.Hide()
-        //             lbl.Show()
-        //             //applyReplacements()
-        //         }
-        //     }(name, valEntry, valLbl)
 
 			// ligne : nom | remplacement
 			row := container.NewHBox(
