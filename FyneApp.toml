@@ -2,7 +2,7 @@ Website = "https://example.com"
 
 [Details]
   Icon = "Icon.png"
-  Name = "Paser"
+  Name = "autosys_template"
   ID = "fr.dss.autosys.parser"
   Version = "1.0.0"
-  Build = 5
+  Build = 6
